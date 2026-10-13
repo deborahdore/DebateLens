@@ -2,6 +2,19 @@
 
 An iOS app that lets journalists read US presidential debates (1960–2020) as annotated argumentation: every claim and premise a candidate made, what supports or attacks it, and which fallacies were used. Built on **ElecDeb60to20** (46 debates, 31k argument components, ~22k relations, 1.5k fallacies).
 
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/transcript.png" width="240" alt="Annotated debate transcript"><br><sub><b>Transcript</b> · claims, premises and fallacies inline</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/argument-graph.png" width="240" alt="Argument graph sheet"><br><sub><b>Argument sheet</b> · what supports and attacks a claim</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/profile.png" width="240" alt="Politician profile"><br><sub><b>Profile</b> · a candidate's argumentative style</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/politicians.png" width="240" alt="Politicians list"><br><sub><b>Politicians</b> · 33 candidates, 1960–2020</sub></td>
+    <td align="center"><img src="docs/screenshots/fallacies.png" width="240" alt="Fallacy explorer"><br><sub><b>Fallacies</b> · distribution, definitions, instances</sub></td>
+    <td align="center"><img src="docs/screenshots/search.png" width="240" alt="Full-text search"><br><sub><b>Search</b> · every claim and premise, all debates</sub></td>
+  </tr>
+</table>
+
 ## What the app does
 
 | Tab | What a journalist gets |
@@ -22,9 +35,7 @@ An iOS app that lets journalists read US presidential debates (1960–2020) as a
 
 ## Build
 
-Requirements: Xcode 16+, iOS 18 deployment target (uses `Color.mix`). Open `DebateLens.xcodeproj`, pick a simulator, run. There are no dependencies. The project uses Xcode 16's synchronized folders, so adding a Swift file to `DebateLens/` is enough.
-
-I could not compile on my side (no Xcode in this environment), so a first build may surface one or two type-check nits; the code is written against iOS 17/18 SwiftUI, Charts and Observation APIs.
+Requirements: Xcode 16+, iOS 18 deployment target (uses `Color.mix`). Open `DebateLens.xcodeproj`, pick a simulator, run. There are no dependencies. The project uses Xcode 16's synchronized folders, so adding a Swift file to `DebateLens/` is enough. The screenshots above were taken on the iPhone 17 simulator.
 
 ## Data pipeline
 
@@ -49,6 +60,7 @@ DebateLens/
   ExplorerViews.swift     fallacy explorer, search
   Resources/Data/         generated JSON
 Tools/build_dataset.py    converter
+docs/screenshots/         README images
 ```
 
 ## Natural next steps
