@@ -144,16 +144,16 @@ struct TurnBubble: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     PartyDot(politician: politician)
-                    Text(politician?.name ?? turn.speaker.capitalized).font(.caption.weight(.semibold)).foregroundStyle(politician == nil ? .secondary : .primary)
+                    Text(politician?.name ?? turn.speaker.capitalized).font(.caption.weight(.semibold)).foregroundStyle(politician == nil ? HierarchicalShapeStyle.secondary : HierarchicalShapeStyle.primary)
                     Spacer()
-                    if !comps.isEmpty { Text("\(comps.count)").font(.caption2.monospacedDigit()).foregroundStyle(.claim) }
-                    if !fals.isEmpty { Text("\(fals.count)").font(.caption2.monospacedDigit()).foregroundStyle(.fallacy) }
+                    if !comps.isEmpty { Text("\(comps.count)").font(.caption2.monospacedDigit()).foregroundStyle(Color.claim) }
+                    if !fals.isEmpty { Text("\(fals.count)").font(.caption2.monospacedDigit()).foregroundStyle(Color.fallacy) }
                 }
                 Text(attributed(comps: comps, fallacies: fals))
                     .font(side == .center ? .callout : .body)
                     .fontDesign(.serif)
                     .lineSpacing(3)
-                    .foregroundStyle(side == .center ? .secondary : .primary)
+                    .foregroundStyle(side == .center ? HierarchicalShapeStyle.secondary : HierarchicalShapeStyle.primary)
                     .textSelection(.enabled)
             }
             .padding(12)
@@ -184,7 +184,7 @@ struct TurnBubble: View {
         }
         if showFallacies {
             for f in fallacies { if let s = f.start, let e = f.end, let r = range(s, e) {
-                a[r].underlineStyle = Text.LineStyle(pattern: .solid, color: .fallacy)
+                a[r].underlineStyle = Text.LineStyle(pattern: .solid, color: Color.fallacy)
                 if f.componentId == nil || !comps.contains(where: { $0.id == f.componentId }) { a[r].link = URL(string: "debatelens://f/\(f.id)") }
             } }
         }

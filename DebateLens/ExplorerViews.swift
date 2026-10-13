@@ -63,7 +63,7 @@ struct FallacyExplorerView: View {
                                     PartyDot(politician: store.politician(f.politician))
                                     Text(store.politician(f.politician)?.name ?? f.speaker.capitalized)
                                     Text("·").foregroundStyle(.tertiary)
-                                    Text(f.subcategory).foregroundStyle(.fallacy)
+                                    Text(f.subcategory).foregroundStyle(Color.fallacy)
                                     Spacer()
                                     Text("\(d.year)")
                                 }
@@ -86,7 +86,7 @@ struct Chip: View {
             Text(label).font(.caption.weight(selected ? .semibold : .regular))
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(selected ? Color.fallacy : Color(uiColor: .tertiarySystemFill), in: Capsule())
-                .foregroundStyle(selected ? .white : .primary)
+                .foregroundStyle(selected ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)
     }

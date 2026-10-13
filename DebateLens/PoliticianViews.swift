@@ -30,8 +30,8 @@ struct PoliticianListView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 3) {
-                        Text("\(p.claims + p.premises) arguments").font(.caption.monospacedDigit()).foregroundStyle(.claim)
-                        Text("\(p.fallacies) fallacies").font(.caption.monospacedDigit()).foregroundStyle(p.fallacies == 0 ? .secondary : .fallacy)
+                        Text("\(p.claims + p.premises) arguments").font(.caption.monospacedDigit()).foregroundStyle(Color.claim)
+                        Text("\(p.fallacies) fallacies").font(.caption.monospacedDigit()).foregroundStyle(p.fallacies == 0 ? Color.secondary : Color.fallacy)
                     }
                 }
             }
@@ -39,8 +39,7 @@ struct PoliticianListView: View {
         .navigationTitle("Politicians")
         .searchable(text: $query, prompt: "Candidate name")
         .toolbar {
-            Menu { Picker("Sort", selection: $sort) { ForEach(Sort.allCases, id: \.self) { Text($0.rawValue) } } }
-            label: { Image(systemName: "arrow.up.arrow.down") }
+            Menu { Picker("Sort", selection: $sort) { ForEach(Sort.allCases, id: \.self) { Text($0.rawValue) } } } label: { Image(systemName: "arrow.up.arrow.down") }
         }
     }
 }
@@ -110,7 +109,7 @@ struct PoliticianDetailView: View {
 
     private func fallacyCounts(_ debates: [Debate]) -> [(category: String, count: Int)] {
         Dictionary(grouping: debates.flatMap(\.fallacies).filter { $0.politician == politicianId }, by: \.category)
-            .map { ($0.key, $0.value.count) }.sorted { $0.1 > $1.1 }
+            .map { (category: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
     }
 
     private func interpretation(_ p: Politician, debates: [Debate]) -> String {
@@ -141,8 +140,8 @@ struct DebateRow: View {
                         .font(.caption).fontWeight(id == focus ? .semibold : .regular)
                 }
                 Spacer()
-                Text("\(summary.claims + summary.premises)").foregroundStyle(.claim)
-                if summary.fallacies > 0 { Text("\(summary.fallacies)").foregroundStyle(.fallacy) }
+                Text("\(summary.claims + summary.premises)").foregroundStyle(Color.claim)
+                if summary.fallacies > 0 { Text("\(summary.fallacies)").foregroundStyle(Color.fallacy) }
             }
             .font(.caption.monospacedDigit())
         }

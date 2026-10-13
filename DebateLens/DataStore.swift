@@ -62,7 +62,7 @@ final class DataStore {
     }
 
     func fallacyCounts(for politician: String?) -> [(category: String, count: Int)] {
-        Dictionary(grouping: fallacies(for: politician), by: \.fallacy.category).map { ($0.key, $0.value.count) }.sorted { $0.1 > $1.1 }
+        Dictionary(grouping: fallacies(for: politician), by: \.fallacy.category).map { (category: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
     }
 
     func search(_ query: String, type: String?, politician: String?) -> [Hit] {

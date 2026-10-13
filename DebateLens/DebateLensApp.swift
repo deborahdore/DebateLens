@@ -6,7 +6,7 @@ struct DebateLensApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView().environment(store).tint(.claim)
+            RootView().environment(store).tint(Color.claim)
         }
     }
 }
