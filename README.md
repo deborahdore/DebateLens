@@ -7,7 +7,7 @@
 ![Xcode 26+](https://img.shields.io/badge/Xcode-26%2B-147EFB?logo=xcode&logoColor=white)
 ![On-device LLM](https://img.shields.io/badge/LLM-Qwen3--1.7B%20on%20MLX-6E56CF)
 
-DebateLens is an iOS app for journalists and fact-checkers. It shows every claim and premise a candidate made in a debate, what supports or attacks it, and which fallacies were used. It covers 46 debates from Kennedy–Nixon (1960) to Trump–Biden (2020), using the expert annotations of the **ElecDeb60to20** corpus.
+DebateLens is an iOS app for journalists and fact-checkers. It shows every claim and premise a candidate made in a debate, what supports or attacks it, and which fallacies were used. For any topic, it can also summarise what a candidate argues, written on the device from that candidate's own claims and citing each one. It covers 46 debates from Kennedy–Nixon (1960) to Trump–Biden (2020), using the expert annotations of the **ElecDeb60to20** corpus.
 
 <table>
   <tr>
@@ -43,6 +43,7 @@ DebateLens is an iOS app for journalists and fact-checkers. It shows every claim
 - **Two levels of fallacy annotation.** Fallacies tied to a component appear inside its argument sheet. Fallacies annotated on free text, with no component, can be tapped on their own.
 - **Discontinuous spans.** Annotation spans that are split in two are rendered correctly, e.g. a claim interrupted by its own premise.
 - **Provenance.** Component ids (`T495`) are visible everywhere, so any finding can be traced back to the corpus.
+- **Summaries cite, or they don't show.** The model is given numbered claims and nothing else, with thinking turned off and a low temperature. After generation, every sentence must cite at least one of those numbers; sentences that cite nothing, or a number that was never given, are removed. If nothing survives, the app says so instead of showing an answer. Citations prove where a sentence came from, not that it reads the claim correctly, which is why the cited claims are always listed below the summary.
 
 ## Getting started
 
@@ -51,7 +52,14 @@ git clone https://github.com/deborahdore/DebateLens.git
 open DebateLens/DebateLens.xcodeproj
 ```
 
-Pick a device and press **Run** (⌘R). The app needs Xcode 26+ (for the MLX package) and iOS 18+ (it uses `Color.mix`). The debate data is bundled. Xcode resolves three Swift packages on first open (`mlx-swift-lm`, `swift-huggingface`, `swift-transformers`) and asks you to **Trust & Enable** the `MLXHuggingFace` macros. Topic summaries need a real iPhone or iPad, because MLX does not run in the Simulator; everything else works in the Simulator. The project uses Xcode 16 synchronized folders, so a new Swift file dropped into `DebateLens/` is picked up automatically.
+Pick a device and press **Run** (⌘R).
+
+- **Requirements.** Xcode 26+ (the MLX package needs Swift tools 6.2) and iOS 18+ (the app uses `Color.mix`).
+- **Packages.** On first open Xcode resolves `mlx-swift-lm`, `swift-huggingface` and `swift-transformers` (versions pinned in `Package.resolved`) and asks you to **Trust & Enable** the `MLXHuggingFace` macros.
+- **Simulator.** Everything works in the Simulator except topic summaries: MLX needs the GPU of a real iPhone or iPad, so the Simulator shows a notice in their place.
+- **Model.** The summary model is not bundled. The first time you tap *Download summary model* in Search, about 1 GB is fetched from Hugging Face and cached; after that it loads from disk. To try another model, change `Summarizer.model` (for example to `LLMRegistry.qwen3_5_2b_4bit`).
+
+The debate data is bundled. The project uses synchronized folders, so a new Swift file dropped into `DebateLens/` is picked up automatically.
 
 ## Data
 
@@ -100,10 +108,13 @@ docs/screenshots/          README images
 
 - About 1% of components (314 of 33,743) have character offsets that begin in the previous turn. They are attributed to the wrong speaker; for example, Trump's premise `T493` in `41_2016` is credited to the moderator. Another 107 components have no turn.
 - In the argument graph, second-ring nodes can be clipped at the edges of the canvas.
+- Topic summaries rely on the same substring search as Search, so *health care* and *Medicare* are different topics. The topic clustering on the roadmap would fix this.
+- A 1.7B model can merge positions from different years or overstate a hedged claim. Summaries have not been evaluated against human-written ones yet.
 
 ## Roadmap
 
-- **Topics across decades.** Cluster claims by subject using the SBERT embeddings already in `arguments/`, so a reader can follow *deficit* or *Iraq* from 1960 to 2020.
+- **Topics across decades.** Cluster claims by subject using the SBERT embeddings already in `arguments/`, so a reader can follow *deficit* or *Iraq* from 1960 to 2020, and feed those clusters to the topic summaries instead of a keyword match.
+- **Summary evaluation.** Check faithfulness of the generated summaries against their cited claims on a sample of politicians × topics, and compare model sizes.
 - **Claim reuse.** Use the `Equivalent` relation plus embeddings to find the same claim repeated across debates and years.
 - **Live mode.** Run an argument-mining and fallacy-detection pipeline on a new transcript and load it in the same JSON format. The app depends on nothing beyond that format.
 - **Export.** One argument graph as PDF or Markdown, ready for a fact-check piece.
