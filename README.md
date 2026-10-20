@@ -4,8 +4,8 @@
 
 ![iOS 18+](https://img.shields.io/badge/iOS-18%2B-black?logo=apple)
 ![Swift](https://img.shields.io/badge/SwiftUI-Charts%20%C2%B7%20Observation-F05138?logo=swift&logoColor=white)
-![Xcode 16+](https://img.shields.io/badge/Xcode-16%2B-147EFB?logo=xcode&logoColor=white)
-![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
+![Xcode 26+](https://img.shields.io/badge/Xcode-26%2B-147EFB?logo=xcode&logoColor=white)
+![On-device LLM](https://img.shields.io/badge/LLM-Qwen3--1.7B%20on%20MLX-6E56CF)
 
 DebateLens is an iOS app for journalists and fact-checkers. It shows every claim and premise a candidate made in a debate, what supports or attacks it, and which fallacies were used. It covers 46 debates from Kennedy–Nixon (1960) to Trump–Biden (2020), using the expert annotations of the **ElecDeb60to20** corpus.
 
@@ -34,6 +34,8 @@ DebateLens is an iOS app for journalists and fact-checkers. It shows every claim
 
 **Search.** Full-text search over every claim and premise in every debate, filterable by type and candidate. Selecting a hit opens the transcript with the argument sheet already open.
 
+**Topic summaries.** With a candidate selected, Search adds a short summary of what that candidate argues about the search term. It is written on the device by [Qwen3-1.7B](https://huggingface.co/mlx-community/Qwen3-1.7B-4bit) (4-bit, Apache 2.0) through [MLX Swift](https://github.com/ml-explore/mlx-swift-lm), so nothing leaves the phone. The model reads only that candidate's matching claims (the 30 with most support, in chronological order) and must cite them as `[n]` after each sentence. Sentences that cite no real claim are dropped, and each cited claim is listed under the summary and opens the transcript. The model (~1 GB) is downloaded once, on request.
+
 ### Design notes
 
 - **Not annotated ≠ zero.** Fallacies are annotated in 31 of the 46 debates. Fallacy rates are computed over annotated debates only, and the other debates are labelled *not annotated*.
@@ -49,7 +51,7 @@ git clone https://github.com/deborahdore/DebateLens.git
 open DebateLens/DebateLens.xcodeproj
 ```
 
-Pick an iOS simulator and press **Run** (⌘R). The app needs Xcode 16+ and iOS 18+ (it uses `Color.mix`). The data is bundled, so there are no packages to resolve and nothing to download. The project uses Xcode 16 synchronized folders, so a new Swift file dropped into `DebateLens/` is picked up automatically.
+Pick a device and press **Run** (⌘R). The app needs Xcode 26+ (for the MLX package) and iOS 18+ (it uses `Color.mix`). The debate data is bundled. Xcode resolves three Swift packages on first open (`mlx-swift-lm`, `swift-huggingface`, `swift-transformers`) and asks you to **Trust & Enable** the `MLXHuggingFace` macros. Topic summaries need a real iPhone or iPad, because MLX does not run in the Simulator; everything else works in the Simulator. The project uses Xcode 16 synchronized folders, so a new Swift file dropped into `DebateLens/` is picked up automatically.
 
 ## Data
 
@@ -88,6 +90,7 @@ DebateLens/
   DebateView.swift         transcript bubbles, inline highlighting
   ArgumentGraphView.swift  graph (Canvas), argument and fallacy sheets
   ExplorerViews.swift      fallacy explorer, search
+  Summarizer.swift         on-device topic summaries (MLX, Qwen3-1.7B), citation check
   Resources/Data/          generated JSON
 Tools/build_dataset.py     corpus → JSON converter
 docs/screenshots/          README images

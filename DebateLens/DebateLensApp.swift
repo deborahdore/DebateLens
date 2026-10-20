@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct DebateLensApp: App {
     @State private var store = DataStore()
+    @State private var summarizer = Summarizer()
 
     var body: some Scene {
         WindowGroup {
-            RootView().environment(store).tint(Color.claim)
+            RootView().environment(store).environment(summarizer).tint(Color.claim)
         }
     }
 }

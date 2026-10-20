@@ -117,6 +117,13 @@ struct SearchView: View {
                 if query.count < 2 {
                     Section { Text("Search what was actually argued — e.g. “deficit”, “Social Security”, “nuclear”, “Iraq” — across every debate from 1960 to 2020.").font(.callout).foregroundStyle(.secondary) }
                 } else {
+                    if let p = store.politician(politician) {
+                        let topic = query.trimmingCharacters(in: .whitespaces)
+                        let own = type == nil ? hits : store.search(query, type: nil, politician: p.id)
+                        TopicSummarySection(topic: topic, politician: p, sources: Summarizer.sources(from: own, store: store))
+                    } else {
+                        Section { Label("Pick a politician above to get an automatic summary of what they argue about “\(query.trimmingCharacters(in: .whitespaces))”.", systemImage: "sparkles").font(.callout).foregroundStyle(.secondary) }
+                    }
                     Section("\(hits.count) result\(hits.count == 1 ? "" : "s")") {
                         ForEach(hits.prefix(300)) { h in
                             let d = store.debate(h.debateId)
