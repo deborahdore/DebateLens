@@ -20,6 +20,9 @@ DebateLens is an iOS app for journalists and fact-checkers. It shows every claim
     <td align="center"><img src="docs/screenshots/fallacies.png" width="240" alt="Fallacy explorer"><br><sub><b>Fallacies</b> · distribution, definitions, instances</sub></td>
     <td align="center"><img src="docs/screenshots/search.png" width="240" alt="Full-text search"><br><sub><b>Search</b> · every claim and premise, all debates</sub></td>
   </tr>
+  <tr>
+    <td align="center" colspan="3"><img src="docs/screenshots/topic-summary.png" width="240" alt="On-device topic summary for Donald Trump on the deficit"><br><sub><b>Topic summary</b> · what a candidate argues about a topic, written on the device, every sentence cited</sub></td>
+  </tr>
 </table>
 
 ## Features
@@ -34,7 +37,7 @@ DebateLens is an iOS app for journalists and fact-checkers. It shows every claim
 
 **Search.** Full-text search over every claim and premise in every debate, filterable by type and candidate. Selecting a hit opens the transcript with the argument sheet already open.
 
-**Topic summaries.** With a candidate selected, Search adds a short summary of what that candidate argues about the search term. It is written on the device by [Qwen3-1.7B](https://huggingface.co/mlx-community/Qwen3-1.7B-4bit) (4-bit, Apache 2.0) through [MLX Swift](https://github.com/ml-explore/mlx-swift-lm), so nothing leaves the phone. The model reads only that candidate's matching claims (the 30 with most support, in chronological order) and must cite them as `[n]` after each sentence. Sentences that cite no real claim are dropped, and each cited claim is listed under the summary and opens the transcript. The model (~1 GB) is downloaded once, on request.
+**Topic summaries.** With a candidate selected, Search adds a short summary of what that candidate argues about the search term. It is written on the device by [Qwen3-1.7B](https://huggingface.co/mlx-community/Qwen3-1.7B-4bit) (4-bit, Apache 2.0) through [MLX Swift](https://github.com/ml-explore/mlx-swift-lm), so nothing leaves the phone. The model reads only that candidate's matching claims (the 24 with most support, oldest first), each with its debate metadata: the date and kind of debate, the opponent, the question it answered and who asked it, the first premise supporting it, who attacked it, and any annotated fallacy. It must cite them as `[n]` after each sentence and may only mention dates that appear in the claims it cites. Sentences that cite no real claim are dropped, and each cited claim is listed under the summary and opens the transcript. The model (~1 GB) is downloaded once, on request.
 
 ### Design notes
 
@@ -43,7 +46,7 @@ DebateLens is an iOS app for journalists and fact-checkers. It shows every claim
 - **Two levels of fallacy annotation.** Fallacies tied to a component appear inside its argument sheet. Fallacies annotated on free text, with no component, can be tapped on their own.
 - **Discontinuous spans.** Annotation spans that are split in two are rendered correctly, e.g. a claim interrupted by its own premise.
 - **Provenance.** Component ids (`T495`) are visible everywhere, so any finding can be traced back to the corpus.
-- **Summaries cite, or they don't show.** The model is given numbered claims and nothing else, with thinking turned off and a low temperature. After generation, every sentence must cite at least one of those numbers; sentences that cite nothing, or a number that was never given, are removed. If nothing survives, the app says so instead of showing an answer. Citations prove where a sentence came from, not that it reads the claim correctly, which is why the cited claims are always listed below the summary.
+- **Summaries cite, or they don't show.** The model is given numbered claims and nothing else, with thinking turned off and a low temperature. After generation, every sentence must cite at least one of those numbers; sentences that cite nothing, or a number that was never given, are removed, and citations the model uses as words ("[1] and [3] both…") are rewritten as "Claims 1 and 3 both…". If nothing survives, the app says so instead of showing an answer. Citations prove where a sentence came from, not that it reads the claim correctly, which is why the cited claims are always listed below the summary.
 
 ## Getting started
 
@@ -57,7 +60,7 @@ Pick a device and press **Run** (⌘R).
 - **Requirements.** Xcode 26+ (the MLX package needs Swift tools 6.2) and iOS 18+ (the app uses `Color.mix`).
 - **Packages.** On first open Xcode resolves `mlx-swift-lm`, `swift-huggingface` and `swift-transformers` (versions pinned in `Package.resolved`) and asks you to **Trust & Enable** the `MLXHuggingFace` macros.
 - **Simulator.** Everything works in the Simulator except topic summaries: MLX needs the GPU of a real iPhone or iPad, so the Simulator shows a notice in their place.
-- **Model.** The summary model is not bundled. The first time you tap *Download summary model* in Search, about 1 GB is fetched from Hugging Face and cached; after that it loads from disk. To try another model, change `Summarizer.model` (for example to `LLMRegistry.qwen3_5_2b_4bit`).
+- **Model.** The summary model is not bundled. The first time you tap *Download summary model* in Search, about 1 GB is fetched from Hugging Face and cached; after that it loads from disk. *Delete summary model*, under the summary, removes it again and shows how much space it frees. To try another model, change `Summarizer.model` (for example to `LLMRegistry.qwen3_5_2b_4bit`).
 
 The debate data is bundled. The project uses synchronized folders, so a new Swift file dropped into `DebateLens/` is picked up automatically.
 
