@@ -15,17 +15,36 @@ struct SummarySource: Hashable {
     var context: [String]
 }
 
+/// A small open model the user can pick for summaries (4-bit, through MLX). Sizes are the Hugging Face download.
+struct SummaryModel: Identifiable {
+    var name: String
+    var bytes: Int64
+    var note: String
+    var configuration: ModelConfiguration
+    var id: String { configuration.name }
+    var size: String { bytes.formatted(.byteCount(style: .file)) }
+
+    static let all = [
+        SummaryModel(name: "Qwen3-0.6B", bytes: 351_000_000, note: "Smallest and fastest; expect looser summaries. Apache 2.0.", configuration: LLMRegistry.qwen3_0_6b_4bit),
+        SummaryModel(name: "Llama 3.2 1B", bytes: 713_000_000, note: "Meta's 1B instruct model. Llama 3.2 Community License.", configuration: LLMRegistry.llama3_2_1B_4bit),
+        SummaryModel(name: "Gemma 3 1B", bytes: 772_000_000, note: "Google's 1B instruct model, quantization-aware trained. Gemma Terms of Use.", configuration: LLMRegistry.gemma3_1B_qat_4bit),
+        SummaryModel(name: "Qwen3-1.7B", bytes: 984_000_000, note: "Default: the largest of these, and the one the prompt was written for. Apache 2.0.", configuration: LLMRegistry.qwen3_1_7b_4bit),
+    ]
+    static func with(id: String?) -> SummaryModel { all.first { $0.id == id } ?? all[3] }
+}
+
 /// On-device topic summaries: what a politician argues about a search term, written by
-/// Qwen3-1.7B (4-bit, Apache 2.0) through MLX from that politician's own claims only.
+/// the small model the user picked (see `SummaryModel`) through MLX from that politician's own claims only.
 /// Every sentence must cite the numbered claims it relies on; sentences that cite nothing valid are dropped.
 @MainActor @Observable
 final class Summarizer {
     struct Sentence: Hashable { var text: String; var refs: [Int] }
     enum Status: Equatable { case idle, downloading(Double), loading, writing, failed(String) }
 
-    static let model = LLMRegistry.qwen3_1_7b_4bit
-    static let modelName = "Qwen3-1.7B"
     static let readyKey = "summaryModelReady"
+    static let modelKey = "summaryModel"
+
+    private(set) var model = SummaryModel.with(id: UserDefaults.standard.string(forKey: Summarizer.modelKey))
 
     private(set) var status: Status = .idle
     private(set) var activeKey: String?
@@ -61,7 +80,17 @@ final class Summarizer {
         status = .idle
     }
 
-    /// Downloads (first time, ~1 GB) and loads the model once; concurrent callers share the same load.
+    /// Switches the model the next download uses. Only one model is kept on the device, so the current one is deleted,
+    /// and summaries it wrote are cleared since they would otherwise be credited to the new one.
+    func select(_ m: SummaryModel) {
+        guard !isBusy, m.id != model.id else { return }
+        deleteModel()
+        results = [:]
+        model = m
+        UserDefaults.standard.set(m.id, forKey: Self.modelKey)
+    }
+
+    /// Downloads (first time, 0.35–1 GB depending on the model) and loads the model once; concurrent callers share the same load.
     func prepare() async throws -> ModelContainer {
         #if targetEnvironment(simulator)
         throw NSError(domain: "DebateLens", code: 1, userInfo: [NSLocalizedDescriptionKey: "MLX needs a real iPhone or iPad; it does not run in the Simulator."])
@@ -69,10 +98,11 @@ final class Summarizer {
         if loading == nil {
             let downloaded = UserDefaults.standard.bool(forKey: Self.readyKey)
             status = downloaded ? .loading : .downloading(0)
-            UIApplication.shared.isIdleTimerDisabled = true   // a locked screen suspends the app and drops the 1 GB transfer
+            UIApplication.shared.isIdleTimerDisabled = true   // a locked screen suspends the app and drops the transfer
+            let configuration = model.configuration
             loading = Task {
                 try await LLMModelFactory.shared.loadContainer(
-                    from: #hubDownloader(), using: #huggingFaceTokenizerLoader(), configuration: Self.model
+                    from: #hubDownloader(), using: #huggingFaceTokenizerLoader(), configuration: configuration
                 ) { progress in
                     let f = progress.fractionCompleted
                     // Once every file is on disk the weights are being loaded, not downloaded.
@@ -235,6 +265,7 @@ struct TopicSummarySection: View {
     @AppStorage(Summarizer.readyKey) private var modelReady = false
     @State private var cacheBytes: Int64 = 0
     @State private var confirmDelete = false
+    @State private var pendingModel: SummaryModel?
     var topic: String
     var politician: Politician
     var sources: [SummarySource]
@@ -281,7 +312,25 @@ struct TopicSummarySection: View {
         } footer: {
             VStack(alignment: .leading, spacing: 8) {
                 if sources.count >= 3 {
-                    Text("Written on your device by \(Summarizer.modelName) from \(politician.name)'s own claims only. It can still misread them, so check the cited sources.")
+                    Text("Written on your device by \(summarizer.model.name) from \(politician.name)'s own claims only. It can still misread them, so check the cited sources.")
+                }
+                if modelReady && !summarizer.isBusy {
+                    Menu("Change model (\(summarizer.model.name))") {
+                        Picker("Model", selection: Binding(get: { summarizer.model.id }, set: { id in
+                            if id != summarizer.model.id { pendingModel = .with(id: id) }
+                        })) { modelOptions }
+                    }
+                    .font(.footnote)
+                    .confirmationDialog("Switch to \(pendingModel?.name ?? "")?", isPresented: Binding(get: { pendingModel != nil }, set: { if !$0 { pendingModel = nil } }),
+                                        titleVisibility: .visible, presenting: pendingModel) { m in
+                        Button("Switch and download (\(m.size))") {
+                            summarizer.select(m)
+                            cacheBytes = Summarizer.cacheSize()
+                            Task { _ = try? await summarizer.prepare() }
+                        }
+                    } message: { m in
+                        Text("\(summarizer.model.name) will be deleted from your device and \(m.name) downloaded. Summaries written so far will be cleared.")
+                    }
                 }
                 if cacheBytes > 0 && !summarizer.isBusy {
                     Button("Delete summary model (\(cacheBytes.formatted(.byteCount(style: .file))))", role: .destructive) { confirmDelete = true }
@@ -289,13 +338,13 @@ struct TopicSummarySection: View {
                 }
             }
             .task(id: summarizer.status) { cacheBytes = Summarizer.cacheSize() }
-            .confirmationDialog("Delete \(Summarizer.modelName)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .confirmationDialog("Delete \(summarizer.model.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete (\(cacheBytes.formatted(.byteCount(style: .file))))", role: .destructive) {
                     summarizer.deleteModel()
                     cacheBytes = Summarizer.cacheSize()
                 }
             } message: {
-                Text("Summaries will need the model to be downloaded again (about 1 GB).")
+                Text("Summaries will need the model to be downloaded again (\(summarizer.model.size)).")
             }
         }
     }
@@ -308,7 +357,7 @@ struct TopicSummarySection: View {
         switch summarizer.status {
         case .downloading(let f):
             VStack(alignment: .leading, spacing: 6) {
-                Text("Downloading \(Summarizer.modelName)…").font(.callout)
+                Text("Downloading \(summarizer.model.name)…").font(.callout)
                 ProgressView(value: f)
             }
         case .loading:
@@ -324,18 +373,31 @@ struct TopicSummarySection: View {
                 Text(message).font(.callout).foregroundStyle(.secondary)
                 Button("Try again") { Task { await summarizer.summarize(key: key, topic: topic, politician: politician, sources: sources) } }
             }
+            if !modelReady { modelPicker }
         default:
             if modelReady {
                 HStack { ProgressView(); Text("Waiting…").font(.callout).foregroundStyle(.secondary) }
             } else {
+                Text("Get an automatic summary of each candidate's position, written on your device from the claims below. Nothing leaves your phone.")
+                    .font(.callout).foregroundStyle(.secondary)
+                modelPicker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Get an automatic summary of each candidate's position, written on your device from the claims below. Nothing leaves your phone.")
-                        .font(.callout).foregroundStyle(.secondary)
-                    Button("Download summary model (about 1 GB)") { Task { _ = try? await summarizer.prepare() } }
+                    Text(summarizer.model.note).font(.caption).foregroundStyle(.secondary)
+                    Button("Download \(summarizer.model.name) (\(summarizer.model.size))") { Task { _ = try? await summarizer.prepare() } }
                 }
             }
         }
         #endif
+    }
+
+    /// Its own list row, before anything is downloaded: picking a model here costs nothing.
+    private var modelPicker: some View {
+        Picker("Model", selection: Binding(get: { summarizer.model.id }, set: { summarizer.select(.with(id: $0)) })) { modelOptions }
+            .pickerStyle(.menu)
+    }
+
+    private var modelOptions: some View {
+        ForEach(SummaryModel.all) { m in Text("\(m.name) · \(m.size)").tag(m.id) }
     }
 
     private func attributed(_ sentences: [Summarizer.Sentence]) -> AttributedString {
